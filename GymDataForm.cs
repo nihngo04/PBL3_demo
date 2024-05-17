@@ -2,75 +2,85 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
+using System.IO.Packaging;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Data.SqlClient;
-using System.Data.SqlClient;
-using System.ComponentModel.Design;
+using PBL3.DB; // Đảm bảo bạn đã thêm namespace cho DBHelper
 
 namespace PBL3
 {
     public partial class GymDataForm : Form
     {
-        string s = @"Data Source=LAPTOP-IL246S2S\SQLEXPRESS01;Initial Catalog=DEMO_GYMSYSTEM;Integrated Security=True";
-        SqlConnection con;
-        SqlDataAdapter adt;
-        private DataTable Member, PT, Recep, Machine;
+        private DataTable Member, PT, Recep, Machine, Invoice, Pack;
         private DataTable[] tabData;
         private int currentTabIndex;
+
         public GymDataForm()
         {
             InitializeComponent();
             InitializeTabControl();
             LoadDataFromDatabase();
+            InitializeSortComboBox_Menber();
+            InitializeSortComboBox_PT();
+            InitializeSortComboBox_Recep();
         }
+
         private void LoadDataFromDatabase()
         {
-            using (SqlConnection con = new SqlConnection(s))
-            {
-                con.Open();
-                string queryMem = "SELECT * FROM Khach";
-                using (SqlCommand commandMem = new SqlCommand(queryMem, con))
-                {
-                    SqlDataAdapter adapterMem = new SqlDataAdapter(commandMem);
-                    Member = new DataTable();
-                    adapterMem.Fill(Member);
-                }
-                string queryPT = "SELECT * FROM Huan_luyen_vien";
-                using (SqlCommand commandPT = new SqlCommand(queryPT, con))
-                {
-                    SqlDataAdapter adapterPT = new SqlDataAdapter(commandPT);
-                    PT = new DataTable();
-                    adapterPT.Fill(PT);
-                }
-                string queryRecep = "select * from Nhan_vien_le_tan";
-                using (SqlCommand commandRecep = new SqlCommand(queryRecep, con))
-                {
-                    SqlDataAdapter adapterRecep = new SqlDataAdapter(commandRecep);
-                    Recep = new DataTable();
-                    adapterRecep.Fill(Recep);
-                }
-                string queryMachine = "select * from May_tap";
-                using (SqlCommand commandMachine = new SqlCommand(queryMachine, con))
-                {
-                    SqlDataAdapter adapterMachine = new SqlDataAdapter(commandMachine);
-                    Machine = new DataTable();
-                    adapterMachine.Fill(Machine);
-                }
-            }
+            Member = DBHelper.Instance.GetRecord("SELECT * FROM Khach");
+            PT = DBHelper.Instance.GetRecord("SELECT * FROM Huan_luyen_vien");
+            Recep = DBHelper.Instance.GetRecord("SELECT * FROM Nhan_vien_le_tan");
+            Machine = DBHelper.Instance.GetRecord("SELECT * FROM May_tap");
+            Pack = DBHelper.Instance.GetRecord("SELECT * FROM Goi_tap");
+            Invoice = DBHelper.Instance.GetRecord("SELECT * FROM Hoa_don");
             DGV_Mem.DataSource = Member;
             DGV_PT.DataSource = PT;
             DGV_Recep.DataSource = Recep;
             DGV_Machine.DataSource = Machine;
+            DGV_Pack.DataSource = Pack;
+            DGV_Invoice.DataSource = Invoice;
         }
+
         private void InitializeTabControl()
         {
             tabControlGym.SelectedIndexChanged += TabControl1_SelectedIndexChanged;
         }
 
+        private void InitializeSortComboBox_Menber()
+        {
+            cbbSort.Items.Add("ID_khach");
+            cbbSort.Items.Add("Ho_ten");
+            cbbSort.Items.Add("Ngay_sinh");
+            cbbSort.Items.Add("So_dien_thoai");
+            cbbSort.Items.Add("Email");
+            cbbSort.Items.Add("Gioi_tinh");
+            cbbSort.Items.Add("Ma_goi_tap");
+            cbbSort.Items.Add("Ngay_tham_gia");
+            cbbSort.Items.Add("Ma_HLV");
+            cbbSort.Items.Add("Dia_chi");
+        }
+
+        private void InitializeSortComboBox_PT()
+        {
+            cbbSort_PT.Items.Add("Ma_HLV");
+            cbbSort_PT.Items.Add("Ho_ten");
+            cbbSort_PT.Items.Add("Chuyen_mon");
+            cbbSort_PT.Items.Add("Kinh_nghiem");
+            cbbSort_PT.Items.Add("Luong");
+
+        }
+        private void InitializeSortComboBox_Recep()
+        {
+            cbbSort_Recep.Items.Add("Ma_HLV");
+            cbbSort_Recep.Items.Add("Ho_ten");
+            cbbSort_Recep.Items.Add("Chuyen_mon");
+            cbbSort_Recep.Items.Add("Luong");
+
+        }
         private void TabControl1_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (tabControlGym.SelectedTab == tabMem)
@@ -89,17 +99,26 @@ namespace PBL3
             {
                 DGV_Machine.DataSource = Machine;
             }
+            else if (tabControlGym.SelectedTab == tabInvoice)
+            {
+                DGV_Pack.DataSource = Invoice;
+            }
+            else if (tabControlGym.SelectedTab == tabPack)
+            {
+                DGV_Pack.DataSource = Pack;
+            }
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
-
+            // Do nothing for now
         }
 
         private void btn_Mem_Add_Click(object sender, EventArgs e)
         {
-            addMember addmen = new addMember();
+            inforMember addmen = new inforMember();
             addmen.ShowDialog(); // Sử dụng ShowDialog để đảm bảo form mới hiển thị và chờ đợi cho đến khi nó đóng lại
-
+            LoadDataFromDatabase();
         }
 
         private void bt_soluongkhach_Click(object sender, EventArgs e)
@@ -110,14 +129,14 @@ namespace PBL3
 
         private void addReceptionist_Click(object sender, EventArgs e)
         {
-            addRecep addRecep = new addRecep();
+            inforRecep addRecep = new inforRecep();
             addRecep.ShowDialog();
             LoadDataFromDatabase();
         }
 
         private void addPT_Click(object sender, EventArgs e)
         {
-            addPT addPT = new addPT();
+            inforPT addPT = new inforPT();
             addPT.ShowDialog();
             LoadDataFromDatabase();
         }
@@ -137,16 +156,9 @@ namespace PBL3
                 if (result == DialogResult.Yes)
                 {
                     // Thực hiện truy vấn SQL DELETE để xóa dữ liệu từ bảng cơ sở dữ liệu
-                    using (SqlConnection connection = new SqlConnection(s))
-                    {
-                        connection.Open();
-                        string query = "DELETE FROM Khach WHERE ID_khach = @ID_khach";
-                        using (SqlCommand command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@ID_khach", maLT);
-                            command.ExecuteNonQuery();
-                        }
-                    }
+                    string query = "DELETE FROM Khach WHERE ID_khach = @ID_khach";
+                    SqlParameter param = new SqlParameter("@ID_khach", maLT);
+                    DBHelper.Instance.ExecuteDB(query, param);
 
                     // Cập nhật lại nguồn dữ liệu của DataGridView để hiển thị các thay đổi mới
                     LoadDataFromDatabase();
@@ -158,91 +170,6 @@ namespace PBL3
             }
         }
 
-        /*private void btn_updateRecep_Click(object sender, EventArgs e)
-        {
-            // Lặp qua từng dòng trong DataGridView để cập nhật thông tin
-            foreach (DataGridViewRow row in DGV_Recep.Rows)
-            {
-                // Kiểm tra nếu dòng không phải là dòng mới
-                if (!row.IsNewRow)
-                {
-                    // Lấy thông tin từ các ô trong dòng
-                    string maRecep = row.Cells["Ma_le_tan"].Value != null ? row.Cells["Ma_le_tan"].Value.ToString() : "";
-                    string hoTen = row.Cells["Ho_ten"].Value != null ? row.Cells["Ho_ten"].Value.ToString() : "";
-                    string chuyenMon = row.Cells["Chuyen_mon"].Value != null ? row.Cells["Chuyen_mon"].Value.ToString() : "";
-                    decimal luong = 0;
-                    if (row.Cells["Luong"].Value != null && decimal.TryParse(row.Cells["Luong"].Value.ToString(), out luong))
-                    {
-                        // Thực hiện truy vấn SQL UPDATE để cập nhật thông tin nhân viên lễ tân
-                        using (SqlConnection connection = new SqlConnection(s))
-                        {
-                            connection.Open();
-                            string query = "UPDATE Nhan_vien_le_tan SET Ho_ten = @Ho_ten, Chuyen_mon = @Chuyen_mon, Luong = @Luong WHERE Ma_le_tan = @Ma_Recep";
-                            using (SqlCommand command = new SqlCommand(query, connection))
-                            {
-                                command.Parameters.AddWithValue("@Ho_ten", hoTen);
-                                command.Parameters.AddWithValue("@Chuyen_mon", chuyenMon);
-                                command.Parameters.AddWithValue("@Luong", luong);
-                                command.Parameters.AddWithValue("@Ma_Recep", maRecep);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sau khi cập nhật, thông báo cho người dùng biết rằng dữ liệu đã được cập nhật thành công
-            MessageBox.Show("Thông tin nhân viên lễ tân đã được cập nhật thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }*/
-        private void btn_updateRecep_Click(object sender, EventArgs e)
-        {
-            // Lặp qua từng dòng trong DataGridView để cập nhật thông tin
-            foreach (DataGridViewRow row in DGV_Recep.Rows)
-            {
-                // Kiểm tra nếu dòng không phải là dòng mới và có giá trị khóa chính
-                if (!row.IsNewRow && row.Cells["Ma_le_tan"].Value != null && !string.IsNullOrEmpty(row.Cells["Ma_le_tan"].Value.ToString()))
-                {
-                    // Lấy thông tin từ các ô trong dòng
-                    string maRecep = row.Cells["Ma_le_tan"].Value.ToString();
-                    string hoTen = row.Cells["Ho_ten"].Value != null ? row.Cells["Ho_ten"].Value.ToString() : "";
-                    string chuyenMon = row.Cells["Chuyen_mon"].Value != null ? row.Cells["Chuyen_mon"].Value.ToString() : "";
-                    int luong = 0;
-                    if (row.Cells["Luong"].Value != null && int.TryParse(row.Cells["Luong"].Value.ToString(), out luong))
-                    {
-                        // Thực hiện truy vấn SQL UPDATE để cập nhật thông tin nhân viên lễ tân
-                        using (SqlConnection connection = new SqlConnection(s))
-                        {
-                            connection.Open();
-                            string query = "UPDATE Nhan_vien_le_tan SET Ho_ten = @Ho_ten, Chuyen_mon = @Chuyen_mon, Luong = @Luong WHERE Ma_le_tan = @Ma_Recep";
-                            using (SqlCommand command = new SqlCommand(query, connection))
-                            {
-                                command.Parameters.AddWithValue("@Ho_ten", hoTen);
-                                command.Parameters.AddWithValue("@Chuyen_mon", chuyenMon);
-                                command.Parameters.AddWithValue("@Luong", luong);
-                                command.Parameters.AddWithValue("@Ma_Recep", maRecep);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Nếu giá trị của ô "Luong" không hợp lệ, báo lỗi và dừng cập nhật
-                        MessageBox.Show("Lương phải là một số nguyên dương!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
-                    }
-                }
-                else
-                {
-                    // Nếu dòng không có giá trị khóa chính, báo lỗi và dừng cập nhật
-                    MessageBox.Show("Dòng nhập vào thiếu thông tin khóa chính!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    LoadDataFromDatabase();
-                    return;
-                }
-            }
-
-            // Sau khi cập nhật, thông báo cho người dùng biết rằng dữ liệu đã được cập nhật thành công
-            MessageBox.Show("Thông tin nhân viên lễ tân đã được cập nhật thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
 
         private void btn_Mem_Del_Click(object sender, EventArgs e)
         {
@@ -259,16 +186,9 @@ namespace PBL3
                 if (result == DialogResult.Yes)
                 {
                     // Thực hiện truy vấn SQL DELETE để xóa dữ liệu từ bảng cơ sở dữ liệu
-                    using (SqlConnection connection = new SqlConnection(s))
-                    {
-                        connection.Open();
-                        string query = "DELETE FROM Khach WHERE ID_khach = @ID_khach";
-                        using (SqlCommand command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@ID_khach", maPT);
-                            command.ExecuteNonQuery();
-                        }
-                    }
+                    string query = "DELETE FROM Khach WHERE ID_khach = @ID_khach";
+                    SqlParameter param = new SqlParameter("@ID_khach", maPT);
+                    DBHelper.Instance.ExecuteDB(query, param);
 
                     // Cập nhật lại nguồn dữ liệu của DataGridView để hiển thị các thay đổi mới
                     LoadDataFromDatabase();
@@ -295,16 +215,9 @@ namespace PBL3
                 if (result == DialogResult.Yes)
                 {
                     // Thực hiện truy vấn SQL DELETE để xóa dữ liệu từ bảng cơ sở dữ liệu
-                    using (SqlConnection connection = new SqlConnection(s))
-                    {
-                        connection.Open();
-                        string query = "DELETE FROM Huan_luyen_vien WHERE Ma_HLV = @Ma_HLV";
-                        using (SqlCommand command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@Ma_HLV", maPT);
-                            command.ExecuteNonQuery();
-                        }
-                    }
+                    string query = "DELETE FROM Huan_luyen_vien WHERE Ma_HLV = @Ma_HLV";
+                    SqlParameter param = new SqlParameter("@Ma_HLV", maPT);
+                    DBHelper.Instance.ExecuteDB(query, param);
 
                     // Cập nhật lại nguồn dữ liệu của DataGridView để hiển thị các thay đổi mới
                     LoadDataFromDatabase();
@@ -318,124 +231,316 @@ namespace PBL3
 
         private void btn_Mem_Update_Click(object sender, EventArgs e)
         {
-            bool hasError = false; // Biến để kiểm tra xem có lỗi không
-
-            // Lặp qua từng dòng trong DataGridView để cập nhật thông tin
-            foreach (DataGridViewRow row in DGV_Mem.Rows)
+            if (DGV_Mem.SelectedRows.Count > 0)
             {
-                // Kiểm tra nếu dòng không phải là dòng mới và có giá trị cho khóa chính "ID_khach"
-                if (!row.IsNewRow && row.Cells["ID_khach"].Value != null && !string.IsNullOrEmpty(row.Cells["ID_khach"].Value.ToString()))
+                DataGridViewRow selectedRow = DGV_Mem.SelectedRows[0];
+                if (selectedRow.Cells["ID_khach"].Value != null)
                 {
-                    // Lấy thông tin từ các ô trong dòng
-                    string idKhach = row.Cells["ID_khach"].Value.ToString();
-                    string maGoiTap = row.Cells["Ma_goi_tap"].Value != null ? row.Cells["Ma_goi_tap"].Value.ToString() : "";
-                    string maHLV = row.Cells["Ma_HLV"].Value != null ? row.Cells["Ma_HLV"].Value.ToString() : "";
-                    string hoTen = row.Cells["Ho_ten"].Value != null ? row.Cells["Ho_ten"].Value.ToString() : "";
-                    string ngaySinh = row.Cells["Ngay_sinh"].Value != null ? row.Cells["Ngay_sinh"].Value.ToString() : "";
-                    string gioiTinh = row.Cells["Gioi_tinh"].Value != null ? row.Cells["Gioi_tinh"].Value.ToString() : "";
-                    string soDienThoai = row.Cells["So_dien_thoai"].Value != null ? row.Cells["So_dien_thoai"].Value.ToString() : "";
-                    string email = row.Cells["Email"].Value != null ? row.Cells["Email"].Value.ToString() : "";
-                    string ngayThamGia = row.Cells["Ngay_tham_gia"].Value != null ? row.Cells["Ngay_tham_gia"].Value.ToString() : "";
-                    string diaChi = row.Cells["Dia_chi"].Value != null ? row.Cells["Dia_chi"].Value.ToString() : "";
+                    // Lấy ID_khach của dòng được chọn
+                    int khachId = Convert.ToInt32(DGV_Mem.SelectedRows[0].Cells["ID_khach"].Value);
 
-                    // Thực hiện truy vấn SQL UPDATE để cập nhật thông tin thành viên trong bảng [Khach]
-                    using (SqlConnection connection = new SqlConnection(s))
-                    {
-                        connection.Open();
-                        string query = "UPDATE Khach SET Ma_goi_tap = @Ma_goi_tap, Ma_HLV = @Ma_HLV, Ho_ten = @Ho_ten, Ngay_sinh = @Ngay_sinh, Gioi_tinh = @Gioi_tinh, So_dien_thoai = @So_dien_thoai, Email = @Email, Ngay_tham_gia = @Ngay_tham_gia, Dia_chi = @Dia_chi WHERE ID_khach = @ID_khach";
-                        using (SqlCommand command = new SqlCommand(query, connection))
-                        {
-                            command.Parameters.AddWithValue("@Ma_goi_tap", maGoiTap);
-                            command.Parameters.AddWithValue("@Ma_HLV", maHLV);
-                            command.Parameters.AddWithValue("@Ho_ten", hoTen);
-                            command.Parameters.AddWithValue("@Ngay_sinh", ngaySinh);
-                            command.Parameters.AddWithValue("@Gioi_tinh", gioiTinh);
-                            command.Parameters.AddWithValue("@So_dien_thoai", soDienThoai);
-                            command.Parameters.AddWithValue("@Email", email);
-                            command.Parameters.AddWithValue("@Ngay_tham_gia", ngayThamGia);
-                            command.Parameters.AddWithValue("@Dia_chi", diaChi);
-                            command.Parameters.AddWithValue("@ID_khach", idKhach);
-                            command.ExecuteNonQuery();
-                        }
-                    }
+                    // Mở form inforMember với ID_khach để chỉnh sửa thông tin
+                    inforMember editMemberForm = new inforMember(khachId);
+                    editMemberForm.ShowDialog();
+
+                    // Sau khi đóng form, tải lại dữ liệu để hiển thị các thay đổi mới
+                    LoadDataFromDatabase();
                 }
-                else if (!row.IsNewRow)
+                else
                 {
-                    // Nếu dòng không có giá trị cho khóa chính, đặt biến hasError thành true
-                    hasError = true;
-                    // Hiển thị thông báo lỗi
-                    MessageBox.Show("Dòng nhập vào thiếu thông tin khóa chính!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Dòng được chọn không có thông tin.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
-
-            // Kiểm tra xem có lỗi không trước khi hiển thị thông báo thành công
-            if (!hasError)
+            else
             {
-                // Sau khi cập nhật, thông báo cho người dùng biết rằng dữ liệu đã được cập nhật thành công
-                MessageBox.Show("Thông tin thành viên đã được cập nhật thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Vui lòng chọn một khách hàng để cập nhật.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
-        private void btn_PT_Update_Click_Click(object sender, EventArgs e)
+
+        private void btn_PT_Update_Click(object sender, EventArgs e)
         {
-            bool hasError = false; // Biến để kiểm tra xem có lỗi không
-
-            // Lặp qua từng dòng trong DataGridView để cập nhật thông tin
-            foreach (DataGridViewRow row in DGV_PT.Rows)
+            if (DGV_PT.SelectedRows.Count > 0)
             {
-                // Kiểm tra nếu dòng không phải là dòng mới và có giá trị cho khóa chính "Ma_HLV"
-                if (!row.IsNewRow && row.Cells["Ma_HLV"].Value != null && !string.IsNullOrEmpty(row.Cells["Ma_HLV"].Value.ToString()))
+                DataGridViewRow selectedRow = DGV_PT.SelectedRows[0];
+                if (selectedRow.Cells["Ma_HLV"].Value != null)
                 {
-                    // Lấy thông tin từ các ô trong dòng
-                    string maHLV = row.Cells["Ma_HLV"].Value.ToString();
-                    string hoTen = row.Cells["Ho_ten"].Value != null ? row.Cells["Ho_ten"].Value.ToString() : "";
-                    string chuyenMon = row.Cells["Chuyen_mon"].Value != null ? row.Cells["Chuyen_mon"].Value.ToString() : "";
-                    string kinhNghiem = row.Cells["Kinh_nghiem"].Value != null ? row.Cells["Kinh_nghiem"].Value.ToString() : "";
-                    int luong = 0;
-                    if (row.Cells["Luong"].Value != null && int.TryParse(row.Cells["Luong"].Value.ToString(), out luong))
-                    {
-                        // Thực hiện truy vấn SQL UPDATE để cập nhật thông tin huấn luyện viên trong bảng [Huan_luyen_vien]
-                        using (SqlConnection connection = new SqlConnection(s))
-                        {
-                            connection.Open();
-                            string query = "UPDATE [Huan_luyen_vien] SET Ho_ten = @Ho_ten, Chuyen_mon = @Chuyen_mon, Kinh_nghiem = @Kinh_nghiem, Luong = @Luong WHERE Ma_HLV = @Ma_HLV";
-                            using (SqlCommand command = new SqlCommand(query, connection))
-                            {
-                                command.Parameters.AddWithValue("@Ho_ten", hoTen);
-                                command.Parameters.AddWithValue("@Chuyen_mon", chuyenMon);
-                                command.Parameters.AddWithValue("@Kinh_nghiem", kinhNghiem);
-                                command.Parameters.AddWithValue("@Luong", luong);
-                                command.Parameters.AddWithValue("@Ma_HLV", maHLV);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Nếu giá trị của ô "Luong" không hợp lệ, đặt biến hasError thành true
-                        hasError = true;
-                        // Hiển thị thông báo lỗi
-                        MessageBox.Show("Lương phải là một số nguyên!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+
+                    // Lấy ID_khach của dòng được chọn
+                    string HLVId = DGV_PT.SelectedRows[0].Cells["Ma_HLV"].Value.ToString();
+
+                    // Mở form inforMember với ID_khach để chỉnh sửa thông tin
+                    inforPT editPTForm = new inforPT(HLVId);
+                    editPTForm.ShowDialog();
+
+                    // Sau khi đóng form, tải lại dữ liệu để hiển thị các thay đổi mới
+                    LoadDataFromDatabase();
                 }
-                else if (!row.IsNewRow)
+                else
                 {
-                    // Nếu dòng không có giá trị cho khóa chính, đặt biến hasError thành true
-                    hasError = true;
-                    // Hiển thị thông báo lỗi
-                    MessageBox.Show("Dòng nhập vào thiếu thông tin khóa chính!", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Dòng được chọn không có thông tin.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
-
-            // Kiểm tra xem có lỗi không trước khi hiển thị thông báo thành công
-            if (!hasError)
+            else
             {
-                // Sau khi cập nhật, thông báo cho người dùng biết rằng dữ liệu đã được cập nhật thành công
-                MessageBox.Show("Thông tin huấn luyện viên đã được cập nhật thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Vui lòng chọn một huấn luyện viên để cập nhật.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        private void btn_updateRecep_Click(object sender, EventArgs e)
+        {
+            if (DGV_Recep.SelectedRows.Count > 0)
+            {
+                DataGridViewRow selectedRow = DGV_Recep.SelectedRows[0];
+                if (selectedRow.Cells["Ma_le_tan"].Value != null)
+                {
+
+                    // Lấy ID_khach của dòng được chọn
+                    string LTId = DGV_Recep.SelectedRows[0].Cells["Ma_le_tan"].Value.ToString();
+
+                    // Mở form inforMember với ID_khach để chỉnh sửa thông tin
+                    inforRecep editRecepForm = new inforRecep(LTId);
+                    editRecepForm.ShowDialog();
+
+                    // Sau khi đóng form, tải lại dữ liệu để hiển thị các thay đổi mới
+                    LoadDataFromDatabase();
+                }
+                else
+                {
+                    MessageBox.Show("Dòng được chọn không có thông tin.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Vui lòng chọn một lễ tân để cập nhật.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
+        private void btn_Search_Click(object sender, EventArgs e)
+        {
+            string keyword = txtSearch.Text.Trim();
+
+            if (string.IsNullOrEmpty(keyword))
+            {
+                MessageBox.Show("Vui lòng nhập từ khóa tìm kiếm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Bắt đầu tạo truy vấn SQL tìm kiếm
+            string query = @"
+            SELECT * 
+            FROM Khach
+            WHERE 
+                 ID_khach LIKE @Keyword OR
+                 Ho_ten LIKE @Keyword OR 
+                 Dia_chi LIKE @Keyword OR 
+                 Gioi_tinh LIKE @Keyword OR 
+                 So_dien_thoai LIKE @Keyword OR 
+                 Email LIKE @Keyword OR 
+                 Ma_goi_tap LIKE @Keyword OR 
+                 Ma_HLV LIKE @Keyword";
+
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+            new SqlParameter("@Keyword", "%" + keyword + "%")
+            };
+
+            // Kiểm tra xem từ khóa có phải là một ngày hợp lệ hay không
+            if (DateTime.TryParse(keyword, out DateTime dateValue))
+            {
+                query += " OR CONVERT(date, Ngay_sinh) = @DateValue OR CONVERT(date, Ngay_tham_gia) = @DateValue";
+                parameters.Add(new SqlParameter("@DateValue", dateValue));
+            }
+            // Kiểm tra xem từ khóa có phải là một tháng hợp lệ hay không
+            else if (int.TryParse(keyword, out int month) && month >= 1 && month <= 12)
+            {
+                query += " OR MONTH(Ngay_sinh) = @Month OR MONTH(Ngay_tham_gia) = @Month";
+                parameters.Add(new SqlParameter("@Month", month));
+            }
+            // Kiểm tra xem từ khóa có phải là một năm hợp lệ hay không
+            else if (int.TryParse(keyword, out int year))
+            {
+                query += " OR YEAR(Ngay_sinh) = @Year OR YEAR(Ngay_tham_gia) = @Year";
+                parameters.Add(new SqlParameter("@Year", year));
+            }
+
+            try
+            {
+                DataTable searchResult = DBHelper.Instance.GetRecord(query, parameters.ToArray());
+                DGV_Mem.DataSource = searchResult;
+
+                if (searchResult.Rows.Count == 0)
+                {
+                    MessageBox.Show("Không tìm thấy kết quả nào.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSort_Click(object sender, EventArgs e)
+        {
+            string selectedColumn = cbbSort.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedColumn))
+            {
+                MessageBox.Show("Vui lòng chọn cột để sắp xếp.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string query = $@"
+            SELECT * 
+            FROM Khach
+            ORDER BY {selectedColumn}";
+
+            try
+            {
+                DataTable sortedResult = DBHelper.Instance.GetRecord(query);
+                DGV_Mem.DataSource = sortedResult;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSearch_PT_Click(object sender, EventArgs e)
+        {
+            string keyword = txtSearch_PT.Text.Trim();
+
+            if (string.IsNullOrEmpty(keyword))
+            {
+                MessageBox.Show("Vui lòng nhập từ khóa tìm kiếm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Bắt đầu tạo truy vấn SQL tìm kiếm
+            string query = @"
+            SELECT * 
+            FROM Huan_luyen_vien
+            WHERE 
+                 Ma_HLV LIKE @Keyword OR
+                 Ho_ten LIKE @Keyword OR 
+                 Chuyen_mon LIKE @Keyword OR 
+                 Kinh_nghiem LIKE @Keyword OR
+                 Luong LIKE @Keyword "
+                ;
+
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+            new SqlParameter("@Keyword", "%" + keyword + "%")
+            };
+
+            try
+            {
+                DataTable searchResult = DBHelper.Instance.GetRecord(query, parameters.ToArray());
+                DGV_PT.DataSource = searchResult;
+
+                if (searchResult.Rows.Count == 0)
+                {
+                    MessageBox.Show("Không tìm thấy kết quả nào.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSort_PT_Click(object sender, EventArgs e)
+        {
+            string selectedColumn = cbbSort_PT.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedColumn))
+            {
+                MessageBox.Show("Vui lòng chọn cột để sắp xếp.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string query = $@"
+            SELECT * 
+            FROM Huan_luyen_vien
+            ORDER BY {selectedColumn}";
+
+            try
+            {
+                DataTable sortedResult = DBHelper.Instance.GetRecord(query);
+                DGV_PT.DataSource = sortedResult;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSearch_Recep_Click(object sender, EventArgs e)
+        {
+            string keyword = txtSearch_Recep.Text.Trim();
+
+            if (string.IsNullOrEmpty(keyword))
+            {
+                MessageBox.Show("Vui lòng nhập từ khóa tìm kiếm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Bắt đầu tạo truy vấn SQL tìm kiếm
+            string query = @"
+            SELECT * 
+            FROM Nhan_vien_le_tan
+            WHERE 
+                 Ma_le_tan LIKE @Keyword OR
+                 Ho_ten LIKE @Keyword OR 
+                 Chuyen_mon LIKE @Keyword OR 
+                 Luong LIKE @Keyword "
+                ;
+
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+            new SqlParameter("@Keyword", "%" + keyword + "%")
+            };
+
+            try
+            {
+                DataTable searchResult = DBHelper.Instance.GetRecord(query, parameters.ToArray());
+                DGV_Recep.DataSource = searchResult;
+
+                if (searchResult.Rows.Count == 0)
+                {
+                    MessageBox.Show("Không tìm thấy kết quả nào.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSort_Recep_Click(object sender, EventArgs e)
+        {
+            string selectedColumn = cbbSort_Recep.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedColumn))
+            {
+                MessageBox.Show("Vui lòng chọn cột để sắp xếp.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string query = $@"
+            SELECT * 
+            FROM Nhan_vien_le_tan
+            ORDER BY {selectedColumn}";
+
+            try
+            {
+                DataTable sortedResult = DBHelper.Instance.GetRecord(query);
+                DGV_Recep.DataSource = sortedResult;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Đã xảy ra lỗi: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }
-
 

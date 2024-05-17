@@ -48,6 +48,7 @@
             // 
             // txtUsername
             // 
+            txtUsername.BackColor = SystemColors.HighlightText;
             txtUsername.Location = new Point(119, 157);
             txtUsername.Name = "txtUsername";
             txtUsername.Size = new Size(204, 31);
@@ -91,6 +92,7 @@
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
+            BackColor = Color.WhiteSmoke;
             ClientSize = new Size(412, 496);
             Controls.Add(btcancel);
             Controls.Add(label2);
